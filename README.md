@@ -34,7 +34,7 @@ Manage giveaways on Telegram using a simple pyrogram script :D
 2. Run the script: `python main.py`
 3. Add the bot to the groupchat of the channel and the channel and give it messaging permissions
 4. Use `/settime 6` to set giveaway time to 6 hours but you can configure it with any number you want
-5. Send the bot a giveaway post
+5. Send the bot a giveaway post (with a banner image)
 6. Send the bot giveaways codes (one code per line)
 
 ## Commands
