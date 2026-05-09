@@ -1,0 +1,17 @@
+# Secrets
+.env
+
+# Pyrogram session files
+*.session
+*.session-journal
+
+# Database
+*.fs
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+
+# Logs
+logs/
