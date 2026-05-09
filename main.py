@@ -1,6 +1,6 @@
-# Giveaway Management Bot
-# Made by @xeltexynos
-# Version: 3.0.0
+# Giveaway Management Bot - Milestone Edition
+# Original by @xeltexynos | Modified for Auto Milestones
+# Version: 4.0.0
 
 print("Importing Libraries...")
 import pyrogram
@@ -73,6 +73,51 @@ def printlog(message, end=""):
             log.write(f"[{current_time}] {message}\n")
 
 
+# ==================== AUTO MILESTONE GIVEAWAY FUNCTION ====================
+async def start_giveaway_auto(client: pyrogram.Client, duration_hours: int = 24):
+    """Auto-start a giveaway when a milestone is reached"""
+    
+    printlog(message=f"Auto-starting milestone giveaway for {duration_hours} hours")
+    
+    # Set giveaway duration
+    database.set_time(total=duration_hours * 3600, left=0)
+    
+    # Get current post from channel
+    try:
+        msg = await client.get_messages(chat_id=channel_id, message_ids=root["post_id"])
+        
+        # Update channel post with milestone info
+        caption_parts = msg.caption.markdown.split(chr(10))
+        await client.edit_message_caption(
+            chat_id=channel_id,
+            message_id=root["post_id"],
+            caption=f"{caption_parts[0]}\n\n"
+                    f"🎯 **Milestone Giveaway!** 🎯\n"
+                    f"Total Registrations: {len(root['users'])}\n\n"
+                    f"⏰ Giveaway ends in {duration_hours} hours!",
+            reply_markup=InlineKeyboardMarkup(
+                inline_keyboard=[
+                    [InlineKeyboardButton(
+                        text="🎁 Register to Win! 🎁",
+                        url=f"https://t.me/{varfile.bot_username}?start=register"
+                    )]
+                ]
+            )
+        )
+    except:
+        pass
+    
+    # Announce in group
+    await client.send_message(
+        chat_id=group_id,
+        text=f"⚡ **GIVEAWAY STARTED!** ⚡\n\n"
+             f"🎉 We've reached a milestone!\n"
+             f"🏆 A random winner will be selected in {duration_hours} hours!\n\n"
+             f"Click the button in our channel to register and win!"
+    )
+
+
+# ==================== POSTER COMMAND (Admin Only) ====================
 @app.on_message(
     filters=filters.user(users=varfile.admins)
     & filters.private
@@ -86,6 +131,10 @@ def printlog(message, end=""):
             "unused",
             "unban",
             "cleardata",
+            "setmilestone",
+            "checkmilestone",
+            "resetmilestone",
+            "forceset"
         ]
     )
 )
@@ -228,11 +277,21 @@ async def poster(client: pyrogram.Client, message: Message):
         printlog(message="Bot has been reset!")
 
 
+# ==================== START COMMAND ====================
 @app.on_message(
     filters=filters.command(commands="start", prefixes="/") & filters.private
 )
 async def start(client: pyrogram.Client, message: Message):
     if len(message.command) == 1:
+        await message.reply(
+            text=f"🎁 **Milestone Giveaway Bot** 🎁\n\n"
+                 f"Welcome to Top Tokens Official!\n\n"
+                 f"Use the buttons below to register for giveaways when we hit milestones!\n\n"
+                 f"🔹 50 members - First Giveaway\n"
+                 f"🔹 100 members - Second Giveaway\n"
+                 f"🔹 200, 500, 1000 members - Even bigger prizes!\n\n"
+                 f"Made by @XelteXynos | Modified for Top Tokens"
+        )
         return
 
     if message.command[1] == "register":
@@ -248,48 +307,88 @@ async def start(client: pyrogram.Client, message: Message):
 
         if message.from_user.id not in root["users"]:
             database.add_user(user=message.from_user.id)
+            
+            current_count = len(root["users"])
+            
+            # Check for milestone achievements
+            if hasattr(varfile, 'milestones') and varfile.milestones:
+                try:
+                    if varfile.next_milestone_index < len(varfile.milestones):
+                        next_milestone = varfile.milestones[varfile.next_milestone_index]
+                        
+                        if current_count >= next_milestone and not varfile.milestone_reached:
+                            # MILESTONE REACHED!
+                            varfile.milestone_reached = True
+                            
+                            # Announce milestone
+                            await client.send_message(
+                                chat_id=group_id,
+                                text=f"🎉 **MILESTONE ACHIEVED!** 🎉\n\n"
+                                     f"We've reached {current_count} members in Top Tokens Official!\n\n"
+                                     f"🏆 **GIVEAWAY TIME!** 🏆\n"
+                                     f"A random winner will be selected from registered users!\n\n"
+                                     f"Click the button in our channel to register and win!",
+                            )
+                            
+                            # Auto-start giveaway with 24 hour duration
+                            await start_giveaway_auto(client, duration_hours=24)
+                            
+                            # Move to next milestone
+                            varfile.next_milestone_index += 1
+                            varfile.milestone_reached = False
+                except Exception as e:
+                    printlog(f"Milestone check error: {e}")
 
+            # Update channel post registration count every 10 users
             if len(root["users"]) % 10 == 0:
-                msg = await client.get_messages(
-                    chat_id=channel_id, message_ids=root["post_id"]
-                )
-
-                await client.edit_message_caption(
-                    chat_id=channel_id,
-                    message_id=root["post_id"],
-                    caption=f"{"\n".join(msg.caption.markdown.split("\n")[:-2])}\n\nTotal Registrations: {len(root['users'])}",
-                    reply_markup=InlineKeyboardMarkup(
-                        inline_keyboard=[
-                            [
-                                InlineKeyboardButton(
-                                    text="Register!",
-                                    url=f"https://t.me/{varfile.bot_username}?start=register",
-                                )
-                            ]
-                        ]
-                    ),
-                )
+                try:
+                    msg = await client.get_messages(
+                        chat_id=channel_id, message_ids=root["post_id"]
+                    )
+                    
+                    # Only update if caption exists
+                    if msg and msg.caption:
+                        caption_lines = msg.caption.markdown.split("\n")
+                        if len(caption_lines) >= 1:
+                            await client.edit_message_caption(
+                                chat_id=channel_id,
+                                message_id=root["post_id"],
+                                caption=f"{caption_lines[0]}\n\nTotal Registrations: {len(root['users'])}",
+                                reply_markup=InlineKeyboardMarkup(
+                                    inline_keyboard=[
+                                        [
+                                            InlineKeyboardButton(
+                                                text="Register!",
+                                                url=f"https://t.me/{varfile.bot_username}?start=register",
+                                            )
+                                        ]
+                                    ]
+                                ),
+                            )
+                except Exception as e:
+                    printlog(f"Channel update error: {e}")
 
                 if varfile.group_stats:
                     await client.send_message(
                         chat_id=group_id,
-                        text=f"{len(root['users'])} users have registered!\n\n[Click here if you haven't registered yet!](https://t.me/{varfile.bot_username}?start=register)",
+                        text=f"📊 {len(root['users'])} users have registered!\n\n[Click here if you haven't registered yet!](https://t.me/{varfile.bot_username}?start=register)",
                     )
 
             printlog(message=f"User {str(object=message.from_user.id)} has registered!")
 
-            await message.reply(text="You're registered!")
+            await message.reply(text="✅ You're registered for the giveaway!")
 
     elif message.command[1] == "redeem":
 
         if message.from_user.id not in root["chosen"]:
+            await message.reply(text="❌ You haven't won any giveaway yet!")
             return
 
         code = root["codes"][root["chosen"].index(message.from_user.id)]
 
         if code not in root["used_codes"]:
             await message.reply(
-                text="You've won the giveaway! Here's your redeem code: " + code
+                text=f"🎉 **You've won!** 🎉\n\nHere's your prize code: `{code}`\n\nRedeem it before it expires!"
             )
 
             database.mark_used(code=code)
@@ -301,9 +400,8 @@ async def start(client: pyrogram.Client, message: Message):
             except:
                 printlog(message=f"{code} has been redeemed by {message.from_user.id}")
 
-            if len(root["codes"]) == 0:
-                abort(client, message)
 
+# ==================== ADMIN COMMANDS ====================
 
 @app.on_message(
     filters=filters.command(commands="cleardata", prefixes="/")
@@ -313,7 +411,7 @@ async def start(client: pyrogram.Client, message: Message):
 async def cleardata(_, message: Message):
     printlog(message=f"Clearing data on command of {message.from_user.id}...")
     database.clear_db()
-    await message.reply(text="Data cleared!")
+    await message.reply(text="✅ Data cleared!")
     printlog(message=f"Data cleared on command of {message.from_user.id}")
 
 
@@ -341,7 +439,7 @@ async def unused(_, message: Message):
     & filters.private
 )
 async def abort(_, message: Message):
-    await message.reply(text="Aborted!")
+    await message.reply(text="⚠️ Giveaway aborted!")
     printlog(message=f"Bot has been aborted on command of {message.from_user.id}")
     quit()
 
@@ -353,9 +451,25 @@ async def abort(_, message: Message):
 )
 async def stats(_, message: Message):
     printlog(message=f"Sending stats to {message.from_user.id}...")
+    
+    milestone_status = "No milestones set"
+    if hasattr(varfile, 'milestones') and varfile.milestones:
+        if varfile.next_milestone_index < len(varfile.milestones):
+            next_milestone = varfile.milestones[varfile.next_milestone_index]
+            milestone_status = f"Next: {next_milestone} (Need {next_milestone - len(root['users'])} more)"
+        else:
+            milestone_status = "All milestones completed! 🎉"
 
     await message.reply(
-        text=f"Time: {root['time']['left']}/{root['time']['total']}\n\nUsers: {len(root['users'])}\n\nCodes: {len(root['codes'])}\n\nChosen: {len(root['chosen'])}\n\nBanned: {len(root['banned'])}\n\nUsed Codes: {len(root['used_codes'])}\n\nPost ID: {root['post_id']}"
+        text=f"📊 **Giveaway Stats**\n\n"
+             f"⏰ Time: {root['time']['left']}/{root['time']['total']}\n"
+             f"👥 Users: {len(root['users'])}\n"
+             f"🎫 Codes: {len(root['codes'])}\n"
+             f"🏆 Chosen: {len(root['chosen'])}\n"
+             f"🚫 Banned: {len(root['banned'])}\n"
+             f"✅ Used Codes: {len(root['used_codes'])}\n"
+             f"📝 Post ID: {root['post_id']}\n\n"
+             f"🎯 {milestone_status}"
     )
 
     printlog(message=f"Stats sent to {message.from_user.id}")
@@ -369,14 +483,11 @@ async def stats(_, message: Message):
 async def settime(_, message: Message):
     try:
         printlog(f"Setting time to {message.command[1]} hours...")
-
         database.set_time(total=int(float(message.command[1]) * 3600), left=0)
-
         printlog(f"Time set to {root['time']['total']/3600} hours!")
-
-        await message.reply("Time set!")
+        await message.reply(f"✅ Giveaway duration set to {message.command[1]} hours!")
     except:
-        await message.reply("Invalid Time!")
+        await message.reply("❌ Invalid Time! Use: /settime 24")
 
 
 @app.on_message(
@@ -390,7 +501,7 @@ async def ban(client: pyrogram.Client, message: Message):
         user_id = await client.get_users(user_ids=message.command[1])
         user_id = user_id.id
     except:
-        await message.reply("Invalid User!")
+        await message.reply("❌ Invalid User!")
         return
 
     if user_id in root["banned"]:
@@ -403,8 +514,7 @@ async def ban(client: pyrogram.Client, message: Message):
     database.ban_user(user_id=user_id)
 
     printlog(f"User {str(object=user_id)} has been banned!")
-
-    await message.reply("Banned!")
+    await message.reply(f"✅ User {user_id} has been banned!")
 
 
 @app.on_message(
@@ -418,7 +528,7 @@ async def unban(client: pyrogram.Client, message: Message):
         user_id = await client.get_users(user_ids=message.command[1])
         user_id = user_id.id
     except:
-        await message.reply("Invalid User!")
+        await message.reply("❌ Invalid User!")
         return
 
     if user_id not in root["banned"]:
@@ -428,10 +538,105 @@ async def unban(client: pyrogram.Client, message: Message):
     database.unban_user(user_id=user_id)
 
     printlog(f"User {str(object=user_id)} has been unbanned!")
+    await message.reply(f"✅ User {user_id} has been unbanned!")
 
-    await message.reply("Unbanned!")
+
+# ==================== MILESTONE ADMIN COMMANDS ====================
+
+@app.on_message(
+    filters=filters.command(commands="setmilestone", prefixes="/")
+    & filters.user(users=varfile.admins)
+    & filters.private
+)
+async def setmilestone(_, message: Message):
+    """Set custom milestone targets: /setmilestone 50,100,200,500,1000"""
+    try:
+        milestones_list = [int(x.strip()) for x in message.command[1].split(',')]
+        varfile.milestones = milestones_list
+        varfile.next_milestone_index = 0
+        varfile.milestone_reached = False
+        await message.reply(f"✅ Milestones set to: {milestones_list}\n\nFirst target: {milestones_list[0]} members")
+        printlog(f"Milestones updated to {milestones_list}")
+    except:
+        await message.reply("❌ Invalid format!\n\nUse: /setmilestone 50,100,200,500,1000")
 
 
+@app.on_message(
+    filters=filters.command(commands="checkmilestone", prefixes="/")
+    & filters.user(users=varfile.admins)
+    & filters.private
+)
+async def checkmilestone(_, message: Message):
+    """Check progress toward next milestone"""
+    current = len(root["users"])
+    if not hasattr(varfile, 'milestones') or not varfile.milestones:
+        await message.reply("❌ No milestones set! Use /setmilestone first.")
+        return
+    
+    try:
+        if varfile.next_milestone_index < len(varfile.milestones):
+            next_milestone = varfile.milestones[varfile.next_milestone_index]
+            needed = next_milestone - current
+            await message.reply(
+                f"📊 **Milestone Progress**\n\n"
+                f"👥 Current members: {current}\n"
+                f"🎯 Next milestone: {next_milestone}\n"
+                f"📈 Need: {needed} more members!\n"
+                f"🏁 All milestones: {varfile.milestones}"
+            )
+        else:
+            await message.reply(
+                f"🎉 **All Milestones Completed!** 🎉\n\n"
+                f"👥 Final member count: {current}\n"
+                f"🏁 Milestones: {varfile.milestones}\n\n"
+                f"Use /resetmilestone to start over or /setmilestone to set new targets."
+            )
+    except Exception as e:
+        await message.reply(f"Error checking milestone: {e}")
+
+
+@app.on_message(
+    filters=filters.command(commands="resetmilestone", prefixes="/")
+    & filters.user(users=varfile.admins)
+    & filters.private
+)
+async def resetmilestone(_, message: Message):
+    """Reset milestone tracking (after adding custom milestones)"""
+    varfile.next_milestone_index = 0
+    varfile.milestone_reached = False
+    if hasattr(varfile, 'milestones') and varfile.milestones:
+        await message.reply(f"✅ Milestone tracking reset!\n\nNext target: {varfile.milestones[0]} members")
+    else:
+        await message.reply("✅ Milestone tracking reset! Use /setmilestone first to set targets.")
+    printlog(f"Milestone tracking reset by {message.from_user.id}")
+
+
+@app.on_message(
+    filters=filters.command(commands="forceset", prefixes="/")
+    & filters.user(users=varfile.admins)
+    & filters.private
+)
+async def forceset(_, message: Message):
+    """Force set current member count: /forceset 50"""
+    try:
+        new_count = int(message.command[1])
+        # This is a placeholder - would need database modification
+        await message.reply(f"⚠️ Current registered users: {len(root['users'])}\n"
+                           f"To force a milestone, you need to manually add test users or wait for real registrations.")
+    except:
+        await message.reply("❌ Use: /forceset 50")
+
+
+# ==================== START THE BOT ====================
 preliminaries()
-print("Started...")
+print("=" * 50)
+print("🎉 Bot Started Successfully! 🎉")
+print("=" * 50)
+print(f"📊 Milestones configured: {varfile.milestones if hasattr(varfile, 'milestones') else 'Not set'}")
+print(f"👑 Admin ID: {varfile.admins}")
+print(f"💬 Group ID: {group_id}")
+print(f"📢 Channel ID: {channel_id}")
+print("=" * 50)
+print("Bot is running... Press Ctrl+C to stop")
+print("=" * 50)
 app.run()
