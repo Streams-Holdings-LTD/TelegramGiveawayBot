@@ -99,7 +99,7 @@ async def start_giveaway_auto(client: pyrogram.Client, duration_hours: int = 24)
                 inline_keyboard=[
                     [InlineKeyboardButton(
                         text="🎁 Register to Win! 🎁",
-                        url=f"https://t.me/{varfile.bot_username}?start=register"
+                        url=f"t.me/{varfile.bot_username}?start=register"
                     )]
                 ]
             )
@@ -141,23 +141,23 @@ async def start_giveaway_auto(client: pyrogram.Client, duration_hours: int = 24)
 async def poster(client: pyrogram.Client, message: Message):
     printlog(message=f"Message received from {message.from_user.id}!")
     if message.caption:
-        printlog(message=f"Sending Post to channel...")
-        message_sent = await client.send_photo(
-            chat_id=channel_id,
-            caption=message.caption.markdown
-            + "\n\nTotal Registrations: Please wait...",
-            photo=message.photo.file_id,
-            reply_markup=InlineKeyboardMarkup(
-                inline_keyboard=[
-                    [
-                        InlineKeyboardButton(
-                            text="Register!",
-                            url=f"https://t.me/{varfile.bot_username}?start=register",
-                        )
-                    ]
-                ]
-            ),
-        )
+       printlog(message=f"Sending Post to channel...")
+message_sent = await client.send_photo(
+    chat_id=channel_id,
+    caption=message.caption.markdown
+    + "\n\nTotal Registrations: Please wait...",
+    photo=message.photo.file_id,
+    reply_markup=InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(
+                    text="Register!",
+                    url="https://t.me/TopTokensGiveawayBot?start=register",  # ← HARDCODED
+                )
+            ]
+        ]
+    ),
+)
 
         printlog(message=f"Setting Post ID...")
         database.set_post_id(post_id=message_sent.id)

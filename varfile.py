@@ -1,8 +1,6 @@
-# ==================== BOT CONFIGURATION ====================
 import os
 
-# List of admin IDs — comma-separated in env: "123456,789012"
-admins = [int(x) for x in os.environ["ADMIN_IDS"].split(",")]
+admins = [int(x) for x in os.environ.get("ADMIN_IDS", "8491280290").split(",")]
 
 # Auto-abortion time for unused codes (in seconds)
 auto_abort = int(os.environ.get("AUTO_ABORT", str(6*60*60)))
@@ -11,10 +9,10 @@ auto_abort = int(os.environ.get("AUTO_ABORT", str(6*60*60)))
 group_stats = os.environ.get("GROUP_STATS", "true").lower() == "true"
 
 # Your group ID (starts with -)
-group_id = int(os.environ["GROUP_ID"])
+group_id = int(os.environ.get("GROUP_ID", "-1003351933692"))
 
 # Your channel ID (starts with -)
-channel_id = int(os.environ["CHANNEL_ID"])
+channel_id = int(os.environ.get("CHANNEL_ID", "-1003926125197"))
 
 # Test mode
 test_mode = os.environ.get("TEST_MODE", "false").lower() == "true"
@@ -23,16 +21,18 @@ test_mode = os.environ.get("TEST_MODE", "false").lower() == "true"
 test_group_id = int(os.environ.get("TEST_GROUP_ID", "-100"))
 
 # Test channel ID (only used when test_mode = True)
-test_channel_id = int(os.environ.get("TEST_CHANNEL_ID", "-100"))
+test_channel_id = int(os.environ.get("TEST_CHANNEL_ID", "-1003926125197"))
 
 # Your bot token from @BotFather on Telegram
-bot_token = os.environ["BOT_TOKEN"]
+bot_token = os.environ.get("BOT_TOKEN", "8791403335:AAFAuN-MLdjTOc2iLSIGsZaMlb0rLu8iIiE").strip().strip('"\'')
+if not bot_token:
+	raise ValueError("Missing BOT_TOKEN environment variable.")
 
 # Database file name (don't change this)
 database = "database.fs"
 
 # Your bot's username (without the @ symbol)
-bot_username = os.environ["BOT_USERNAME"]
+bot_username = os.environ.get("BOT_USERNAME", "TopTokensGiveawayBot")
 
 # ==================== MILESTONE SETTINGS ====================
 # Comma-separated list of milestone targets in env: "50,100,200,500,1000"
