@@ -18,7 +18,7 @@ channel_id = int(os.environ.get("CHANNEL_ID", "-1003926125197"))
 test_mode = os.environ.get("TEST_MODE", "false").lower() == "true"
 
 # Test group ID (only used when test_mode = True)
-test_group_id = int(os.environ.get("TEST_GROUP_ID", "-100"))
+test_group_id = int(os.environ.get("TEST_GROUP_ID", "-1003351933692"))
 
 # Test channel ID (only used when test_mode = True)
 test_channel_id = int(os.environ.get("TEST_CHANNEL_ID", "-1003926125197"))
